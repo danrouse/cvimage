@@ -7,14 +7,21 @@ cvSkipMethods = [
 	'imshow',
 	'imwrite',
 	'imdecode',
-	'imencode'
+	'imencode',
+	'findContours'
 ]
 
 cvChainableRetvals = [
-	'dst', '_dst', 'img', 'edges']
+	'dst', '_dst', 'img', 'image', 'edges']
 
 cvMethods = {}
 cvConstants = {}
+cvNamespaces = {
+	'threshold': 'THRESH',
+	'morphologyEx': 'MORPH',
+	'cvtColor': 'COLOR',
+	'matchTemplate': 'TM'
+}
 
 def getCvMethods(root, method_dict, constants_dict):
 	for method_name, method in inspect.getmembers(root):
@@ -103,9 +110,10 @@ class CvImage:
 		def wrapped(*args, **kwargs):
 			args = list(args)
 			# allow for constants passed as strings
+			namespace = cvNamespaces[method.__name__] if method.__name__ in cvNamespaces else ''
 			for i, arg in enumerate(args):
-				if type(arg) is str and arg in cvConstants:
-					args[i] = cvConstants[arg]
+				if type(arg) is str:
+					args[i] = CvImage.get_const(arg, namespace)
 
 			if method_type == 'chainable':
 				self.image = method(self.image, *args, **kwargs)
@@ -147,7 +155,38 @@ class CvImage:
 		self.image = self.image[slices[0]:slices[1], slices[2]:slices[3]]
 		return self
 
+	def findContours(self, *args, **kwargs):
+		arg_list = CvImage.get_consts(*args)
+		image, contours, hierarchy = cv2.findContours(self.image.copy(), *arg_list)
+		return contours, hierarchy
+
 	@staticmethod
-	def kernel(ktype = 'ELLIPSE', size = (3,3)):
-		key = 'MORPH_{}'.format(ktype.upper())
-		return cv2.getStructuringElement(cvConstants[key], size)
+	def get_consts(*args, **kwargs):
+		namespace = kwargs['namespace'] if 'namespace' in kwargs else ''
+		ret = []
+		for arg in args:
+			ret.append(CvImage.get_const(arg, namespace))
+
+		return ret
+
+	@staticmethod
+	def get_const(search_name, namespace = ''):
+		name = search_name.upper()
+		if search_name in cvConstants:
+			return cvConstants[search_name]
+		elif name in cvConstants:
+			return cvConstants[name]
+		else:
+			key = '{}_{}'.format(namespace.upper(), name)
+			if key in cvConstants:
+				return cvConstants[key]
+
+		return search_name
+
+kernel_cache = {}
+def cvKernel(key = 'ellipse', size = (3,3)):
+	cache_key = key + str(size)
+	if cache_key not in kernel_cache:
+		cv_key = CvImage.get_const(key, 'morph')
+		kernel_cache[cache_key] = cv2.getStructuringElement(cv_key, size)
+	return kernel_cache[cache_key]

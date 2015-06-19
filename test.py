@@ -40,7 +40,7 @@ class TestCvMethods(unittest.TestCase):
 		sample = gen_sample()
 
 		result, threshold = cv2.threshold(sample, 100, 200, cv2.THRESH_BINARY)
-		im = CvImage(sample).threshold(100, 200, 'THRESH_BINARY')
+		im = CvImage(sample).threshold(100, 200, 'binary')
 
 		self.assertEqual(str(threshold), str(im.image))
 
