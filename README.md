@@ -1,14 +1,14 @@
 # CvImage - a Chainable Python Class for OpenCV
 
-## Usage
-    import cv2
-    from CvImage import CvImage
-    
-    im = CvImage('test.png') \
-        .blur(3)
-        .Canny(100, 200)
-        .show()
+CvImage is a chainable wrapper for OpenCV's python bindings.
 
-## TODO
-- Code coverage
-- Better inline docs
+## Installation
+	- Using ``pip``:
+	    pip install cvimage
+
+## Usage
+	from cvimage import CvImage
+    im = CvImage('test.png') \
+        .blur(3) \
+        .canny(100, 200) \
+        .show()

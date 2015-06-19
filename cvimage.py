@@ -10,37 +10,48 @@ cvSkipMethods = [
 	'imencode'
 ]
 
+cvChainableRetvals = [
+	'dst', '_dst', 'img', 'edges']
+
+cvMethods = {}
+cvConstants = {}
+
+def getCvMethods(root, method_dict, constants_dict):
+	for method_name, method in inspect.getmembers(root):
+		if method_name in cvSkipMethods:
+			continue
+		elif inspect.ismodule(method):
+			getCvMethods(method, method_dict, constants_dict)
+		elif callable(method) and method.__doc__:
+			method_type = 'pass'
+			method_ret = method.__doc__.split('->')[-1].strip()
+			if method_ret in cvChainableRetvals:
+				method_type = 'chainable'				
+			else:
+				ret_values = method_ret.split(',')
+				if len(ret_values) > 1:
+					if ret_values[-1].strip() in cvChainableRetvals:
+						method_type = 'data_chainable'
+
+			# if method_type == 'pass':
+			# 	print(method_name, method_ret)
+
+			# normalize first letter to lowercase
+			method_name = method_name[0].lower() + method_name[1:]
+			
+			if method_name in method_dict:
+				method_name = '{}_{}'.format(root.__name__.split('.')[-1], method_name)
+
+			method_dict[method_name] = (method_type, method)
+		elif method_name[:2] != '__' or method_name[-2:] != '__':
+			constants_dict[method_name] = method
+
+getCvMethods(cv2, cvMethods, cvConstants)
+
+
 class CvImage:
-	"""Chainable OpenCV image class. Wraps cv2 methods."""
-	cvMethods = {}
-
-	@staticmethod
-	def getCvMethods(root, method_dict):
-		for method_name, method in inspect.getmembers(root):
-			if method_name in cvSkipMethods:
-				continue
-			elif inspect.ismodule(method):
-				CvImage.getCvMethods(method, method_dict)
-			elif callable(method) and method.__doc__:
-				method_type = 'pass'
-				method_ret = method.__doc__.split('->')[-1].strip()
-				if method_ret == 'dst' or method_ret == 'img' or method_ret == '_dst':
-					method_type = 'chainable'				
-				else:
-					ret_values = method_ret.split(',')
-					if len(ret_values) > 1:
-						if ret_values[-1].strip() == 'dst':
-							method_type = 'data_chainable'
-
-				if method_name in method_dict:
-					method_name = '{}_{}'.format(root.__name__.split('.')[-1], method_name)
-
-				method_dict[method_name] = (method_type, method)
-
+	"""Chainable wrapper for OpenCV's python bindings."""
 	def __init__(self, *args, **kwargs):
-		if CvImage.cvMethods == {}:
-			CvImage.getCvMethods(cv2, self.cvMethods)
-
 		if type(args[0]) is str:
 			# initialize from a filename
 			self.image = cv2.imread(*args)
@@ -66,7 +77,7 @@ class CvImage:
 		return repr(self.image)
 
 	def __getattr__(self, key):
-		if key in CvImage.cvMethods:
+		if key in cvMethods:
 			return self.wrapCvMethod(key)
 		else:
 			raise AttributeError(key)
@@ -87,7 +98,7 @@ class CvImage:
 			return cmp(self.image, target)
 
 	def wrapCvMethod(self, key):
-		method_type, method = CvImage.cvMethods[key]
+		method_type, method = cvMethods[key]
 
 		def wrapped(*args, **kwargs):
 			if method_type == 'chainable':
@@ -99,6 +110,7 @@ class CvImage:
 				self.image = ret[-1]
 				return self
 			else:
+				print('passthrough', key)
 				return method(self.image, *args)
 
 		return wrapped
@@ -131,4 +143,4 @@ class CvImage:
 	@staticmethod
 	def kernel(ktype = 'ELLIPSE', size = (3,3)):
 		key = 'MORPH_{}'.format(ktype.upper())
-		return cv2.getStructuringElement(cv2[key], size)
+		return cv2.getStructuringElement(cvConstants[key], size)
