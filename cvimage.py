@@ -18,7 +18,7 @@ cvConstants = {}
 
 def getCvMethods(root, method_dict, constants_dict):
 	for method_name, method in inspect.getmembers(root):
-		if method_name in cvSkipMethods:
+		if method_name in cvSkipMethods or method == root:
 			continue
 		elif inspect.ismodule(method):
 			getCvMethods(method, method_dict, constants_dict)
@@ -101,17 +101,24 @@ class CvImage:
 		method_type, method = cvMethods[key]
 
 		def wrapped(*args, **kwargs):
+			args = list(args)
+			# allow for constants passed as strings
+			for i, arg in enumerate(args):
+				if type(arg) is str and arg in cvConstants:
+					args[i] = cvConstants[arg]
+
 			if method_type == 'chainable':
-				self.image = method(self.image, *args)
+				self.image = method(self.image, *args, **kwargs)
 				return self
 			elif method_type == 'data_chainable':
-				ret = method(self.image, *args)
+				ret = method(self.image, *args, **kwargs)
 				self.data = ret[:-1]
+				if len(self.data) == 1:
+					self.data = self.data[0]
 				self.image = ret[-1]
 				return self
 			else:
-				print('passthrough', key)
-				return method(self.image, *args)
+				return method(self.image, *args, **kwargs)
 
 		return wrapped
 

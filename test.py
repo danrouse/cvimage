@@ -4,11 +4,13 @@ import numpy as np
 import cv2
 from cvimage import CvImage
 
+def gen_sample(dims = (512, 512, 3)):
+	return np.uint8(np.random.rand(*dims))
+
 class TestCvMethods(unittest.TestCase):
 
 	def test_filter_chain(self):
-		sample = np.random.rand(512, 512, 3)
-		sample = np.uint8(sample)
+		sample = gen_sample()
 
 		b_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
 		baseline = sample.copy()
@@ -26,6 +28,23 @@ class TestCvMethods(unittest.TestCase):
 
 		self.assertEqual(str(baseline), str(patient.image))
 
+	def test_data_return(self):
+		sample = gen_sample()
+
+		result, threshold = cv2.threshold(sample, 100, 200, cv2.THRESH_BINARY)
+		im = CvImage(sample).threshold(100, 200, cv2.THRESH_BINARY)
+
+		self.assertEqual(result, im.data)
+
+	def test_constants(self):
+		sample = gen_sample()
+
+		result, threshold = cv2.threshold(sample, 100, 200, cv2.THRESH_BINARY)
+		im = CvImage(sample).threshold(100, 200, 'THRESH_BINARY')
+
+		self.assertEqual(str(threshold), str(im.image))
+
+	#def test_kernel(self):
 	#def test_contrib_methods(self):
 
 
