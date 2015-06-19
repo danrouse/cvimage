@@ -62,6 +62,8 @@ class CvImage:
 		if type(args[0]) is str:
 			# initialize from a filename
 			self.image = cv2.imread(*args)
+		elif type(args[0]) is CvImage:
+			self.image = args[0].image
 		else:
 			# initialize from np array
 			self.image = args[0]
@@ -141,24 +143,32 @@ class CvImage:
 	def copy(self):
 		return CvImage(self.image.copy())
 
-	def crop(self, slices):
-		for i, arg in enumerate(slices):
-			if type(arg) is str:
-				# percentage
-				arg = int(arg[:-1]) / 100
-				if i <= 1:
-					arg *= self.height
-				else:
-					arg *= self.width
-				slices[i] = arg
+	def wait(self, delay = 0):
+		keycode = cv2.waitKey(delay)
+		return self
 
-		self.image = self.image[slices[0]:slices[1], slices[2]:slices[3]]
+	def preview(self, delay = 0):
+		return self.show().wait(delay)
+
+	def crop(self, pt1, pt2):
+		slices = []
+		for i, arg in pt1 + pt2:
+			if type(arg) is float:
+				# percentage
+				if i <= 1:
+					arg = int(arg * self.height)
+				else:
+					arg = int(arg * self.width)
+			slices[i] = arg
+
+		self.image = self.image[slices[1]:slices[3], slices[0]:slices[2]]
 		return self
 
 	def findContours(self, *args, **kwargs):
 		arg_list = CvImage.get_consts(*args)
 		image, contours, hierarchy = cv2.findContours(self.image.copy(), *arg_list)
 		return contours, hierarchy
+
 
 	@staticmethod
 	def get_consts(*args, **kwargs):
