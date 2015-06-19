@@ -46,6 +46,7 @@ def getCvMethods(root, method_dict, constants_dict):
 			# normalize first letter to lowercase
 			method_name = method_name[0].lower() + method_name[1:]
 			
+			# resolve submodule conflicts
 			if method_name in method_dict:
 				method_name = '{}_{}'.format(root.__name__.split('.')[-1], method_name)
 
@@ -152,14 +153,14 @@ class CvImage:
 
 	def crop(self, pt1, pt2):
 		slices = []
-		for i, arg in pt1 + pt2:
+		for i, arg in enumerate(pt1 + pt2):
 			if type(arg) is float:
 				# percentage
-				if i <= 1:
+				if i % 2:
 					arg = int(arg * self.height)
 				else:
 					arg = int(arg * self.width)
-			slices[i] = arg
+			slices.append(arg)
 
 		self.image = self.image[slices[1]:slices[3], slices[0]:slices[2]]
 		return self
