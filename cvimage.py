@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 import inspect
 
 cvSkipMethods = [
@@ -65,9 +66,11 @@ class CvImage:
 			self.image = cv2.imread(*args)
 		elif type(args[0]) is CvImage:
 			self.image = args[0].image
-		else:
-			# initialize from np array
+		elif type(args[0]) is np.ndarray:
+			# initialize from np array (OpenCV image)
 			self.image = args[0]
+		else:
+			self.image = np.zeros((1,1), np.uint8)
 
 		if 'name' in kwargs:
 			self.name = kwargs.name
@@ -118,16 +121,31 @@ class CvImage:
 				if type(arg) is str:
 					args[i] = CvImage.get_const(arg, namespace)
 
+			will_copy = False
+			if 'copy' in kwargs:
+				will_copy = kwargs['copy']
+				del kwargs['copy']
+
 			if method_type == 'chainable':
-				self.image = method(self.image, *args, **kwargs)
-				return self
+				im = method(self.image, *args, **kwargs)
+
+				if will_copy:
+					return CvImage(im)
+				else:
+					self.image = im
+					return self
 			elif method_type == 'data_chainable':
 				ret = method(self.image, *args, **kwargs)
 				self.data = ret[:-1]
 				if len(self.data) == 1:
 					self.data = self.data[0]
-				self.image = ret[-1]
-				return self
+				im = ret[-1]
+
+				if will_copy:
+					return CvImage(im)
+				else:
+					self.image = im
+					return self
 			else:
 				return method(self.image, *args, **kwargs)
 
@@ -151,7 +169,7 @@ class CvImage:
 	def preview(self, delay = 0):
 		return self.show().wait(delay)
 
-	def crop(self, pt1, pt2):
+	def crop(self, pt1, pt2, **kwargs):
 		slices = []
 		for i, arg in enumerate(pt1 + pt2):
 			if type(arg) is float:
@@ -162,8 +180,13 @@ class CvImage:
 					arg = int(arg * self.width)
 			slices.append(arg)
 
-		self.image = self.image[slices[1]:slices[3], slices[0]:slices[2]]
-		return self
+		im = self.image[slices[1]:slices[3], slices[0]:slices[2]]
+
+		if 'copy' in kwargs and kwargs['copy']:
+			return CvImage(im)
+		else:
+			self.image = im	
+			return self
 
 	def findContours(self, *args, **kwargs):
 		arg_list = CvImage.get_consts(*args)
